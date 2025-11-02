@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${N8N_HOST}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - N8N_SECURE_COOKIE=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - n8n-n8n-qde8yo     # внутренняя сеть проекта (оставляем)
+      - dokploy-network    # 👈 добавляем общую сеть Dokploy, где сидит Traefik
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.n8n-n8n-qde8yo-5-web.rule=Host(`n8n.rgdb.group`)
+      - traefik.http.routers.n8n-n8n-qde8yo-5-web.entrypoints=web
+      - traefik.http.services.n8n-n8n-qde8yo-5-web.loadbalancer.server.port=5678
+      - traefik.http.routers.n8n-n8n-qde8yo-5-web.service=n8n-n8n-qde8yo-5-web
+      - traefik.http.routers.n8n-n8n-qde8yo-5-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.n8n-n8n-qde8yo-5-websecure.rule=Host(`n8n.rgdb.group`)
+      - traefik.http.routers.n8n-n8n-qde8yo-5-websecure.entrypoints=websecure
+      - traefik.http.services.n8n-n8n-qde8yo-5-websecure.loadbalancer.server.port=5678
+      - traefik.http.routers.n8n-n8n-qde8yo-5-websecure.service=n8n-n8n-qde8yo-5-websecure
+      - traefik.http.routers.n8n-n8n-qde8yo-5-websecure.tls.certresolver=letsencrypt
+
+volumes:
+  n8n_data: null
+
+networks:
+  # твоя локальная сеть проекта (можно оставить для связки с БД и т.д.)
+  n8n-n8n-qde8yo:
+    name: n8n-n8n-qde8yo
+    external: true
+
+  # 👇 добавляем общую сеть Dokploy, где сидит Traefik
+  dokploy-network:
+    external: true
+    name: dokploy-network
